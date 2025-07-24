@@ -128,6 +128,7 @@
             gap: 6px;
             font-size: 0.9rem;
             min-height: 36px;
+            min-width: 44px; /* Ensure minimum touch target size */
         }
 
         .btn:hover {
@@ -155,6 +156,8 @@
 
         .btn-danger {
             background: var(--danger);
+            padding: 8px 12px; /* Ensure enough space for icon */
+            min-width: 40px; /* Minimum width to show icon */
         }
 
         .form-group {
@@ -624,11 +627,13 @@
             .btn {
                 padding: 10px 16px;
                 font-size: 0.95rem;
+                min-height: 44px;
             }
             
             .btn-sm {
                 padding: 8px 14px;
                 font-size: 0.85rem;
+                min-height: 40px;
             }
             
             .task-header {
@@ -703,30 +708,30 @@
             
             /* Fix for trash button on mobile */
             .btn-danger {
-                padding: 8px 12px;
+                padding: 10px 12px;
+                min-width: 44px;
+                justify-content: center;
             }
             
-            .btn-danger i {
+            /* Ensure all action buttons have proper spacing on mobile */
+            .task-actions .btn {
+                min-width: 44px;
+                justify-content: center;
+                padding: 10px 12px;
+            }
+            
+            /* Show icons only on mobile for action buttons */
+            .task-actions .btn i {
                 margin-right: 0;
             }
             
-            .btn-danger span {
+            .task-actions .btn span {
                 display: none;
             }
         }
         
         /* Touch-friendly adjustments */
         @media (hover: none) and (pointer: coarse) {
-            .btn {
-                min-height: 44px;
-                padding: 12px 18px;
-            }
-            
-            .btn-sm {
-                min-height: 40px;
-                padding: 10px 16px;
-            }
-            
             input, select, textarea {
                 min-height: 44px;
                 padding: 12px 14px;
@@ -735,20 +740,6 @@
             .filter-option input {
                 min-height: 24px;
                 min-width: 24px;
-            }
-            
-            /* Ensure all action buttons are visible on mobile */
-            .task-actions .btn {
-                min-width: 40px;
-                justify-content: center;
-            }
-            
-            .task-actions .btn i {
-                margin-right: 0;
-            }
-            
-            .task-actions .btn span {
-                display: none;
             }
         }
         
@@ -1000,7 +991,7 @@
                 exportDate: new Date().toISOString()
             }, null, 2);
             
-            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            const dataUri = 'application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
             const exportFileDefaultName = `taskflow-export-${new Date().toISOString().slice(0,10)}.json`;
             
             const linkElement = document.createElement('a');
