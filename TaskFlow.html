@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>TaskFlow</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📋</text></svg>">
+    <link rel="icon" href="image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📋</text></svg>">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
@@ -700,6 +700,19 @@
             .task-title {
                 font-size: 1rem;
             }
+            
+            /* Fix for trash button on mobile */
+            .btn-danger {
+                padding: 8px 12px;
+            }
+            
+            .btn-danger i {
+                margin-right: 0;
+            }
+            
+            .btn-danger span {
+                display: none;
+            }
         }
         
         /* Touch-friendly adjustments */
@@ -723,6 +736,25 @@
                 min-height: 24px;
                 min-width: 24px;
             }
+            
+            /* Ensure all action buttons are visible on mobile */
+            .task-actions .btn {
+                min-width: 40px;
+                justify-content: center;
+            }
+            
+            .task-actions .btn i {
+                margin-right: 0;
+            }
+            
+            .task-actions .btn span {
+                display: none;
+            }
+        }
+        
+        /* Ensure delete button shows icon properly */
+        .btn-danger i {
+            margin-right: 0;
         }
     </style>
 </head>
