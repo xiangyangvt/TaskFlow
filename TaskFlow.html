@@ -1542,10 +1542,13 @@ let editingTask = null;
             const dataStr = JSON.stringify({
                 tasks: tasks,
                 history: history,
-                exportDate: new Date().toISOString()
+                deletedTasks: deletedTasks,
+                exportDate: new Date().toISOString(),
+                version: '1.0',
+                appVersion: 'TaskFlow v1.0'
             }, null, 2);
             
-            const dataUri = 'application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
             const exportFileDefaultName = `taskflow-export-${new Date().toISOString().slice(0,10)}.json`;
             
             const linkElement = document.createElement('a');
@@ -1554,7 +1557,7 @@ let editingTask = null;
             linkElement.click();
         }
 
-        // Import data from JSON file
+        // Import data from JSON file with smart merging
         function importData(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -1563,17 +1566,98 @@ let editingTask = null;
             reader.onload = function(e) {
                 try {
                     const importedData = JSON.parse(e.target.result);
-                    tasks = importedData.tasks || [];
                     
+                    let mergeStats = {
+                        tasksAdded: 0,
+                        tasksUpdated: 0,
+                        historyAdded: 0,
+                        deletedTasksAdded: 0
+                    };
+                    
+                    // Merge tasks
+                    if (importedData.tasks && Array.isArray(importedData.tasks)) {
+                        importedData.tasks.forEach(importedTask => {
+                            const existingTaskIndex = tasks.findIndex(task => task.id === importedTask.id);
+                            
+                            if (existingTaskIndex !== -1) {
+                                // Task exists - check if we should update
+                                const existingTask = tasks[existingTaskIndex];
+                                const importedDate = new Date(importedTask.lastUpdated || 0);
+                                const existingDate = new Date(existingTask.lastUpdated || 0);
+                                
+                                // Update if imported task is newer
+                                if (importedDate > existingDate) {
+                                    tasks[existingTaskIndex] = { ...importedTask };
+                                    mergeStats.tasksUpdated++;
+                                }
+                            } else {
+                                // New task - add it
+                                tasks.push({ ...importedTask });
+                                mergeStats.tasksAdded++;
+                            }
+                        });
+                    }
+                    
+                    // Merge history (avoid duplicates by checking timestamp and action)
+                    if (importedData.history && Array.isArray(importedData.history)) {
+                        importedData.history.forEach(importedHistoryItem => {
+                            const isDuplicate = history.some(existingItem => 
+                                existingItem.timestamp === importedHistoryItem.timestamp &&
+                                existingItem.action === importedHistoryItem.action &&
+                                existingItem.taskId === importedHistoryItem.taskId
+                            );
+                            
+                            if (!isDuplicate) {
+                                history.push({ ...importedHistoryItem });
+                                mergeStats.historyAdded++;
+                            }
+                        });
+                        
+                        // Sort history by timestamp (newest first)
+                        history.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                    }
+                    
+                    // Merge deleted tasks
+                    if (importedData.deletedTasks && Array.isArray(importedData.deletedTasks)) {
+                        importedData.deletedTasks.forEach(importedDeletedTask => {
+                            const existingDeletedIndex = deletedTasks.findIndex(task => task.id === importedDeletedTask.id);
+                            
+                            if (existingDeletedIndex === -1) {
+                                // New deleted task - add it
+                                deletedTasks.push({ ...importedDeletedTask });
+                                mergeStats.deletedTasksAdded++;
+                            }
+                        });
+                    }
+                    
+                    // Save and refresh UI
                     saveData();
                     renderTaskList();
                     updateDashboard();
                     setupFilters();
                     
-                    alert('Data imported successfully!');
+                    // Refresh completed tasks if visible
+                    if (typeof completedTasksVisible !== 'undefined' && completedTasksVisible) {
+                        renderCompletedTasks();
+                    }
+                    
+                    // Refresh history display
+                    renderTaskHistory();
+                    
+                    // Show detailed merge results
+                    const mergeMessage = `Data merged successfully!\n\n` +
+                        `📋 Tasks: ${mergeStats.tasksAdded} added, ${mergeStats.tasksUpdated} updated\n` +
+                        `📝 History entries: ${mergeStats.historyAdded} added\n` +
+                        `🗑️ Deleted tasks: ${mergeStats.deletedTasksAdded} added`;
+                    
+                    alert(mergeMessage);
+                    
+                    // Reset file input
+                    event.target.value = '';
+                    
                 } catch (error) {
                     alert('Error importing data. Please check the file format.');
-                    console.error(error);
+                    console.error('Import error:', error);
                 }
             };
             reader.readAsText(file);
