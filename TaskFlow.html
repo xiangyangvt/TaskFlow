@@ -1712,14 +1712,16 @@ let editingTask = null;
 
         // Apply filters
         function applyFilters() {
-            const statusCheckboxes = document.querySelectorAll('input[type="checkbox"][id^="filter-"]:not([id^="filter-"])');
+            // Fix: Correct selector for status checkboxes
+            const statusCheckboxes = document.querySelectorAll('#filter-not-started, #filter-in-progress, #filter-paused, #filter-completed');
             activeFilters.status = Array.from(statusCheckboxes)
                 .filter(cb => cb.checked)
                 .map(cb => cb.value);
             
-            const projectCheckboxes = document.querySelectorAll('input[type="checkbox"][id^="filter-"]');
+            // Fix: Correct selector for project checkboxes
+            const projectCheckboxes = document.querySelectorAll('#project-filters input[type="checkbox"]');
             activeFilters.projects = Array.from(projectCheckboxes)
-                .filter(cb => cb.checked && cb.id.startsWith('filter-') && !['filter-not-started', 'filter-in-progress', 'filter-paused', 'filter-completed'].includes(cb.id))
+                .filter(cb => cb.checked)
                 .map(cb => cb.value);
             
             filterContent.classList.remove('show');
@@ -1728,7 +1730,12 @@ let editingTask = null;
 
         // Clear filters
         function clearFilters() {
-            document.querySelectorAll('input[type="checkbox"][id^="filter-"]').forEach(cb => {
+            // Fix: Clear all filter checkboxes properly
+            document.querySelectorAll('#filter-not-started, #filter-in-progress, #filter-paused, #filter-completed').forEach(cb => {
+                cb.checked = true;
+            });
+            
+            document.querySelectorAll('#project-filters input[type="checkbox"]').forEach(cb => {
                 cb.checked = true;
             });
             
