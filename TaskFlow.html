@@ -1928,6 +1928,15 @@ function renderTaskList() {
             e.preventDefault();
             
             if (button.classList.contains('start-btn')) {
+                // Auto-stop any currently active tasks
+                tasks.forEach(t => {
+                    if (t.status === 'in-progress' && t.id !== taskId) {
+                        t.status = 'paused';
+                        t.lastUpdated = new Date();
+                        addToHistory(t, 'auto-paused');
+                    }
+                });
+                
                 task.status = 'in-progress';
                 task.lastUpdated = new Date();
                 addToHistory(task, 'started');
@@ -1936,6 +1945,15 @@ function renderTaskList() {
                 task.lastUpdated = new Date();
                 addToHistory(task, 'paused');
             } else if (button.classList.contains('resume-btn')) {
+                // Auto-stop any currently active tasks
+                tasks.forEach(t => {
+                    if (t.status === 'in-progress' && t.id !== taskId) {
+                        t.status = 'paused';
+                        t.lastUpdated = new Date();
+                        addToHistory(t, 'auto-paused');
+                    }
+                });
+                
                 task.status = 'in-progress';
                 task.lastUpdated = new Date();
                 addToHistory(task, 'resumed');
@@ -1944,6 +1962,15 @@ function renderTaskList() {
                 task.lastUpdated = new Date();
                 addToHistory(task, 'completed');
             } else if (button.classList.contains('restart-btn')) {
+                // Auto-stop any currently active tasks
+                tasks.forEach(t => {
+                    if (t.status === 'in-progress' && t.id !== taskId) {
+                        t.status = 'paused';
+                        t.lastUpdated = new Date();
+                        addToHistory(t, 'auto-paused');
+                    }
+                });
+                
                 task.status = 'in-progress';
                 task.timeSpent = 0;
                 task.lastUpdated = new Date();
