@@ -551,6 +551,27 @@
         .task-history {
             overflow-y: auto;
             flex: 1;
+            max-height: 300px; /* Limit height to make it scrollable */
+            padding-right: 8px; /* Space for scrollbar */
+        }
+
+        /* Custom scrollbar styling */
+        .task-history::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .task-history::-webkit-scrollbar-track {
+            background: var(--light-gray);
+            border-radius: 3px;
+        }
+
+        .task-history::-webkit-scrollbar-thumb {
+            background: var(--gray);
+            border-radius: 3px;
+        }
+
+        .task-history::-webkit-scrollbar-thumb:hover {
+            background: var(--dark);
         }
 
         .history-item {
@@ -558,7 +579,9 @@
             border-bottom: 1px solid var(--light-gray);
             display: flex;
             justify-content: space-between;
+            align-items: flex-start;
             font-size: 0.95rem;
+            position: relative;
         }
 
         .history-item:last-child {
@@ -569,11 +592,49 @@
             font-weight: 500;
             display: flex;
             flex-direction: column;
+            flex: 1;
         }
 
         .history-time {
             color: var(--gray);
             font-size: 0.85rem;
+            white-space: nowrap;
+            margin-left: 12px;
+        }
+
+        .history-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 4px;
+        }
+
+        .restore-btn {
+            background: var(--success);
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .restore-btn:hover {
+            background: #45a049;
+        }
+
+        .history-action.deleted {
+            color: var(--danger);
+        }
+
+        .history-action.archived {
+            color: var(--warning);
+        }
+
+        .deleted-task-info {
+            font-size: 0.8rem;
+            color: var(--gray);
+            margin-top: 2px;
         }
 
         .empty-state {
@@ -1091,6 +1152,7 @@
         // Default tasks for new users
         let tasks = [];
         const history = [];
+        const deletedTasks = []; // New array for soft-deleted tasks
         
         // DOM Elements
         const taskForm = document.getElementById('task-form');
@@ -1135,6 +1197,31 @@ let completedTasksVisible = false;
 let editingTask = null;
 
         // Initialize the app
+        // Clean up old deleted tasks (24 hours)
+        function cleanupDeletedTasks() {
+            const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+            
+            const initialLength = deletedTasks.length;
+            for (let i = deletedTasks.length - 1; i >= 0; i--) {
+                if (new Date(deletedTasks[i].deletedAt) < oneDayAgo) {
+                    deletedTasks.splice(i, 1);
+                    
+                    // Also remove restore option from history
+                    const historyIndex = history.findIndex(h => 
+                        h.taskId === deletedTasks[i]?.id && h.action === 'deleted'
+                    );
+                    if (historyIndex !== -1) {
+                        history[historyIndex].isRestorable = false;
+                    }
+                }
+            }
+            
+            if (deletedTasks.length !== initialLength) {
+                renderTaskHistory();
+                saveData();
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             loadData();
             renderTaskList();
@@ -1142,6 +1229,12 @@ let editingTask = null;
             updateDashboard();
             setupFilters();
             adjustColumnHeights();
+            
+            // Clean up old deleted tasks
+            cleanupDeletedTasks();
+            
+            // Set up periodic cleanup (every hour)
+            setInterval(cleanupDeletedTasks, 60 * 60 * 1000);
             
             // Add completed tasks toggle event listener
             completedStatCard.addEventListener('click', toggleCompletedTasks);
@@ -1162,12 +1255,14 @@ let editingTask = null;
             
             // Render completed tasks
             function renderCompletedTasks() {
+                // Show ALL completed tasks, including those hidden from main list
                 const completedTasks = tasks.filter(task => task.status === 'completed');
                 completedTasksList.innerHTML = '';
                 
                 if (completedTasks.length === 0) {
                     completedTasksList.innerHTML = `
                         <div class="empty-state">
+                            <i class="fas fa-check-circle"></i>
                             <p>No completed tasks today</p>
                         </div>
                     `;
@@ -1418,21 +1513,27 @@ let editingTask = null;
 
         // Save data to localStorage
         function saveData() {
-            localStorage.setItem('taskflowTasks', JSON.stringify(tasks));
-            localStorage.setItem('taskflowHistory', JSON.stringify(history));
+            localStorage.setItem('taskflow-tasks', JSON.stringify(tasks));
+            localStorage.setItem('taskflow-history', JSON.stringify(history));
+            localStorage.setItem('taskflow-deleted', JSON.stringify(deletedTasks)); // Save deleted tasks
         }
 
         // Load data from localStorage
         function loadData() {
-            const savedTasks = localStorage.getItem('taskflowTasks');
-            const savedHistory = localStorage.getItem('taskflowHistory');
+            const savedTasks = localStorage.getItem('taskflow-tasks');
+            const savedHistory = localStorage.getItem('taskflow-history');
+            const savedDeleted = localStorage.getItem('taskflow-deleted');
             
             if (savedTasks) {
-                tasks = JSON.parse(savedTasks);
+                tasks.push(...JSON.parse(savedTasks));
             }
             
             if (savedHistory) {
-                // For simplicity, we'll just use the saved history if it exists
+                history.push(...JSON.parse(savedHistory));
+            }
+            
+            if (savedDeleted) {
+                deletedTasks.push(...JSON.parse(savedDeleted));
             }
         }
 
@@ -1557,52 +1658,44 @@ let editingTask = null;
 
         // Render task list
 function renderTaskList() {
-    taskList.innerHTML = '';
-    
-    let filteredTasks = tasks.filter(task => {
-        if (!activeFilters.status.includes(task.status)) return false;
-        
-        if (activeFilters.projects.length > 0 && 
-            task.project && 
-            !activeFilters.projects.includes(task.project)) {
-            return false;
-        }
-        
-        return true;
-    });
-    
-    // Apply smart sorting if enabled
-    if (smartSortEnabled) {
-        filteredTasks.sort((a, b) => {
-            // Priority 1: Status (in-progress > paused > not-started > completed)
-            const statusOrder = { 'in-progress': 0, 'paused': 1, 'not-started': 2, 'completed': 3 };
-            if (statusOrder[a.status] !== statusOrder[b.status]) {
-                return statusOrder[a.status] - statusOrder[b.status];
+            taskList.innerHTML = '';
+            
+            // Filter out hidden tasks from main list
+            let filteredTasks = tasks.filter(task => !task.hiddenFromMain);
+            
+            // Apply status and project filters
+            filteredTasks = filteredTasks.filter(task => {
+                const statusMatch = activeFilters.status.includes(task.status);
+                const projectMatch = activeFilters.projects.length === 0 || 
+                                   activeFilters.projects.includes(task.project || 'No Project');
+                return statusMatch && projectMatch;
+            });
+            
+            // Apply smart sorting if enabled
+            if (smartSortEnabled) {
+                filteredTasks.sort((a, b) => {
+                    // Priority order: in-progress > paused > not-started > completed
+                    const statusOrder = { 'in-progress': 0, 'paused': 1, 'not-started': 2, 'completed': 3 };
+                    
+                    if (statusOrder[a.status] !== statusOrder[b.status]) {
+                        return statusOrder[a.status] - statusOrder[b.status];
+                    }
+                    
+                    // Then by priority
+                    const priorityOrder = { 'high': 0, 'medium': 1, 'low': 2 };
+                    if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {
+                        return priorityOrder[a.priority] - priorityOrder[b.priority];
+                    }
+                    
+                    // Finally by last updated (most recent first)
+                    return new Date(b.lastUpdated) - new Date(a.lastUpdated);
+                });
             }
             
-            // Priority 2: Task priority (high > medium > low)
-            const priorityOrder = { 'high': 0, 'medium': 1, 'low': 2 };
-            if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {
-                return priorityOrder[a.priority] - priorityOrder[b.priority];
+            if (filteredTasks.length === 0) {
+                taskList.innerHTML = '<div class="empty-state"><i class="fas fa-tasks"></i><p>No tasks match your current filters</p></div>';
+                return;
             }
-            
-            // Priority 3: Most recently updated
-            const aTime = new Date(a.lastUpdated || 0).getTime();
-            const bTime = new Date(b.lastUpdated || 0).getTime();
-            return bTime - aTime;
-        });
-    }
-    
-    if (filteredTasks.length === 0) {
-        taskList.innerHTML = `
-            <div class="empty-state">
-                <i class="fas fa-clipboard-list"></i>
-                <h3>No tasks match your filters</h3>
-                <p>Try adjusting your filter settings</p>
-            </div>
-        `;
-        return;
-    }
     
     filteredTasks.forEach(task => {
         const taskElement = document.createElement('li');
@@ -1640,7 +1733,7 @@ function renderTaskList() {
     setTimeout(adjustColumnHeights, 100);
 }
 
-        // Render task history
+        // Render task history with improved UI and restore functionality
         function renderTaskHistory() {
             taskHistoryEl.innerHTML = '';
             
@@ -1649,13 +1742,32 @@ function renderTaskList() {
                 return;
             }
             
+            // Show ALL history items instead of limiting to 5
             history.forEach(item => {
                 const historyElement = document.createElement('div');
                 historyElement.className = 'history-item';
+                
+                const actionClass = item.action === 'deleted' ? 'deleted' : '';
+                const restoreButton = item.isRestorable ? 
+                    `<div class="history-actions">
+                        <button class="restore-btn" onclick="restoreTask(${item.taskId})">
+                            <i class="fas fa-undo"></i> Restore
+                        </button>
+                    </div>` : '';
+                
+                const deletedInfo = item.action === 'deleted' ? 
+                    '<div class="deleted-task-info">Task will be permanently deleted in 24 hours</div>' : '';
+                
+                const archivedInfo = item.action === 'archived' ? 
+                    '<div class="deleted-task-info">Task hidden from main list but still in Completed Today</div>' : '';
+                
                 historyElement.innerHTML = `
                     <div class="history-title">
-                        <span class="history-action">${item.action}</span>
+                        <span class="history-action ${actionClass}">${item.action}</span>
                         <span class="history-task-title">${item.title} ${item.project ? `<span class="project-tag">${item.project}</span>` : ''}</span>
+                        ${deletedInfo}
+                        ${archivedInfo}
+                        ${restoreButton}
                     </div>
                     <div class="history-time">${item.time}</div>
                 `;
@@ -1757,10 +1869,50 @@ function renderTaskList() {
                 task.lastUpdated = new Date();
                 addToHistory(task, 'cancelled');
             } else if (button.classList.contains('delete-btn')) {
-                tasks = tasks.filter(t => t.id !== taskId);
+                // Check if delete is from completed tasks panel
+                const isFromCompletedPanel = button.closest('.completed-tasks-list');
+                
+                if (isFromCompletedPanel) {
+                    // Full delete from completed panel - move to deletedTasks
+                    const deletedTask = {
+                        ...task,
+                        deletedAt: new Date(),
+                        originalIndex: tasks.findIndex(t => t.id === taskId)
+                    };
+                    
+                    deletedTasks.push(deletedTask);
+                    tasks = tasks.filter(t => t.id !== taskId);
+                    
+                    // Add delete action to history with restore option
+                    addToHistory(task, 'deleted', true);
+                } else {
+                    // Delete from main task list - only hide from main list but keep in completed
+                    if (task.status === 'completed') {
+                        // Mark as hidden from main list but keep in completed today
+                        task.hiddenFromMain = true;
+                        addToHistory(task, 'archived');
+                    } else {
+                        // For non-completed tasks, do full soft delete
+                        const deletedTask = {
+                            ...task,
+                            deletedAt: new Date(),
+                            originalIndex: tasks.findIndex(t => t.id === taskId)
+                        };
+                        
+                        deletedTasks.push(deletedTask);
+                        tasks = tasks.filter(t => t.id !== taskId);
+                        addToHistory(task, 'deleted', true);
+                    }
+                }
+                
                 renderTaskList();
                 updateDashboard();
                 setupFilters();
+                
+                if (completedTasksVisible) {
+                    renderCompletedTasks();
+                }
+                
                 saveData();
                 return;
             }
@@ -1778,17 +1930,20 @@ function renderTaskList() {
         }
 
         // Add to history
-        function addToHistory(task, action) {
+        function addToHistory(task, action, isRestorable = false) {
             const historyItem = {
                 id: Date.now(),
                 action,
                 title: task.title,
                 project: task.project || 'None',
-                time: 'Just now'
+                time: 'Just now',
+                taskId: task.id,
+                isRestorable: isRestorable && action === 'deleted'
             };
             
             history.unshift(historyItem);
             
+            // Keep only 10 items in history
             if (history.length > 10) {
                 history.pop();
             }
@@ -1903,6 +2058,44 @@ function renderTaskList() {
             
             const message = taskId ? 'Task daily time reset successfully!' : 'All daily times reset successfully!';
             alert(message);
+        }
+
+        // Restore deleted task
+        function restoreTask(taskId) {
+            const deletedTaskIndex = deletedTasks.findIndex(t => t.id === taskId);
+            if (deletedTaskIndex === -1) return;
+            
+            const taskToRestore = deletedTasks[deletedTaskIndex];
+            
+            // Remove deletion timestamp and restore to tasks array
+            const { deletedAt, originalIndex, ...restoredTask } = taskToRestore;
+            
+            // Add back to tasks array
+            tasks.unshift(restoredTask);
+            
+            // Remove from deleted tasks
+            deletedTasks.splice(deletedTaskIndex, 1);
+            
+            // Update history to show restore action
+            addToHistory(restoredTask, 'restored');
+            
+            // Remove the delete entry from history and mark as non-restorable
+            const deleteHistoryIndex = history.findIndex(h => h.taskId === taskId && h.action === 'deleted');
+            if (deleteHistoryIndex !== -1) {
+                history[deleteHistoryIndex].isRestorable = false;
+            }
+            
+            // Re-render everything
+            renderTaskList();
+            renderTaskHistory();
+            updateDashboard();
+            setupFilters();
+            
+            if (completedTasksVisible) {
+                renderCompletedTasks();
+            }
+            
+            saveData();
         }
 
         // Simulate time tracking
