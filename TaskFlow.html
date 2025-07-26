@@ -45,6 +45,7 @@
             flex-direction: column;
         }
 
+        /* Ensure two-column layout */
         .app-container {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -767,9 +768,12 @@
             font-size: 0.95rem;
         }
         
+        /* Fix filter dropdown layout */
         .filter-dropdown {
             position: relative;
-            display: inline-block;
+            display: flex;
+            gap: 8px;
+            align-items: center;
         }
         
         .filter-content {
@@ -854,19 +858,111 @@
             min-height: 120px;
         }
         
-        .data-management {
+        /* Header Actions Layout */
+        /* Remove conflicting styles */
+        .header-actions {
+            display: none; /* Remove this */
+        }
+        
+        .data-dropdown {
+            display: none; /* Remove this */
+        }
+        
+        .data-menu-content {
+            display: none;
+            position: absolute;
+            background-color: white;
+            min-width: 160px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+            border-radius: var(--border-radius);
+            z-index: 100;
+            right: 0;
+            top: 40px;
+            padding: 8px 0;
+        }
+        
+        .data-menu-content.show {
+            display: block;
+        }
+        
+        .menu-item {
             display: flex;
-            gap: 12px;
-            margin-top: 15px;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            padding: 10px 16px;
+            border: none;
+            background: none;
+            text-align: left;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: background-color 0.2s;
         }
         
-        .data-management .btn {
-            flex: 1;
-            justify-content: center;
+        .menu-item:hover {
+            background-color: #f5f5f5;
         }
         
-        /* Mobile-specific adjustments */
+        /* Time Stat Card with Reset Button */
+        .time-stat-card {
+            position: relative;
+        }
+        
+        .reset-time-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: none;
+            border: none;
+            color: var(--gray);
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            transition: all 0.2s;
+            opacity: 0.7;
+        }
+        
+        .reset-time-btn:hover {
+            background: rgba(230, 57, 70, 0.1);
+            color: var(--danger);
+            opacity: 1;
+        }
+        
+        /* Reset section styling */
+        .reset-section {
+            text-align: center;
+            margin: 15px 0;
+            padding: 12px;
+            background: rgba(255, 193, 7, 0.1);
+            border-radius: var(--border-radius);
+            border: 1px dashed #ffc107;
+        }
+        
+        .reset-help {
+            display: block;
+            color: var(--gray);
+            margin-top: 5px;
+            font-size: 0.75rem;
+        }
+        
+        /* Remove old data-management from bottom */
+        .data-management {
+            display: none;
+        }
+        
+        /* Mobile Responsive */
         @media (max-width: 600px) {
+            .header-actions {
+                gap: 6px;
+            }
+            
+            .data-menu-content {
+                min-width: 140px;
+                left: 0;
+                right: auto;
+            }
+            
+            /* Mobile-specific adjustments */
             .btn {
                 padding: 10px 16px;
                 font-size: 0.95rem;
@@ -1012,6 +1108,9 @@
                             <button class="btn btn-sm" id="sort-toggle" title="Toggle Smart Sort">
                                 <i class="fas fa-sort-amount-down"></i>
                             </button>
+                            <!-- Simple: Add Export/Import here -->
+                            <button class="btn btn-sm" id="export-data"><i class="fas fa-download"></i></button>
+                            <button class="btn btn-sm" id="import-data"><i class="fas fa-upload"></i></button>
                             <div class="filter-content" id="filter-content">
                                 <div class="filter-group">
                                     <h4>Status</h4>
@@ -1110,7 +1209,15 @@
                     </div>
                     <div class="stat-card">
                         <div class="stat-value" id="time-tracked">0m</div>
-                        <div class="stat-label">Time Tracked</div>
+                        <div class="stat-label">Time Tracked Today</div>
+                    </div>
+                    
+                    <!-- Add Reset Button Right After Time Tracked -->
+                    <div class="reset-section">
+                        <button class="btn btn-sm btn-warning" id="reset-daily-time">
+                            <i class="fas fa-refresh"></i> Reset Today's Time
+                        </button>
+                        <small class="reset-help">Saves progress to history before resetting</small>
                     </div>
                 </div>
 
@@ -1501,12 +1608,36 @@ let editingTask = null;
                     filterContent.classList.remove('show');
                 }
             });
+
+            // Add data menu functionality
+            const dataMenuBtn = document.getElementById('data-menu-btn');
+            const dataMenuContent = document.getElementById('data-menu-content');
             
-            applyFiltersBtn.addEventListener('click', applyFilters);
-            clearFiltersBtn.addEventListener('click', clearFilters);
+            dataMenuBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                dataMenuContent.classList.toggle('show');
+            });
+            
+            document.addEventListener('click', (e) => {
+                if (!dataMenuBtn.contains(e.target) && !dataMenuContent.contains(e.target)) {
+                    dataMenuContent.classList.remove('show');
+                }
+            });
+
+            // Remove conflicting event listeners
+            // Keep existing filter and sort functionality
+            
+            // Ensure export/import still work
             exportBtn.addEventListener('click', exportData);
             importBtn.addEventListener('click', () => importFile.click());
             importFile.addEventListener('change', importData);
+            
+            // Reset button functionality (keep existing)
+            document.getElementById('reset-daily-time').addEventListener('click', () => {
+                if (confirm('Reset daily time for all tasks? This will save current progress to history.')) {
+                    resetDailyTime();
+                }
+            });
             
             window.addEventListener('resize', adjustColumnHeights);
         });
