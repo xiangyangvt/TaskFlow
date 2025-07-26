@@ -89,6 +89,84 @@
             }
         }
 
+        .task-edit-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .task-edit-content {
+            background: white;
+            border-radius: var(--border-radius);
+            padding: 24px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .task-edit-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--light-gray);
+        }
+
+        .task-edit-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--gray);
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .task-edit-close:hover {
+            color: var(--danger);
+        }
+
+        .form-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            align-items: center;
+            margin-top: 20px;
+        }
+
+        .btn-secondary {
+            background: var(--gray);
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: var(--dark);
+        }
+
+        @media (max-width: 600px) {
+            .form-buttons {
+                flex-direction: column;
+                gap: 8px;
+            }
+            
+            .form-buttons .btn {
+                width: 100%;
+            }
+        }
+
         .card {
             background: white;
             border-radius: var(--border-radius);
@@ -219,6 +297,16 @@
             transition: var(--transition);
             position: relative;
             border-left: 4px solid var(--primary);
+            cursor: pointer;
+        }
+
+        .task-item .task-header,
+        .task-item .task-description {
+            pointer-events: none;
+        }
+
+        .task-item .task-actions {
+            pointer-events: auto;
         }
 
         .task-item:hover {
@@ -323,6 +411,30 @@
             box-shadow: var(--shadow);
         }
 
+        .clickable-stat {
+            cursor: pointer;
+            position: relative;
+            transition: var(--transition);
+        }
+
+        .clickable-stat:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .stat-toggle-icon {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            font-size: 0.8rem;
+            color: var(--gray);
+            transition: var(--transition);
+        }
+
+        .stat-toggle-icon.rotated {
+            transform: rotate(180deg);
+        }
+
         .stat-value {
             font-size: 1.4rem;
             font-weight: 700;
@@ -341,6 +453,62 @@
             padding: 16px;
             border-radius: var(--border-radius);
             margin-bottom: 15px;
+        }
+
+        .completed-tasks-section {
+            background: white;
+            border-radius: var(--border-radius);
+            margin-bottom: 15px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            animation: slideDown 0.3s ease-out;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                max-height: 0;
+            }
+            to {
+                opacity: 1;
+                max-height: 400px;
+            }
+        }
+
+        .completed-tasks-header {
+            background: var(--success);
+            color: white;
+            padding: 12px 16px;
+            font-size: 1rem;
+        }
+
+        .completed-tasks-header h3 {
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .completed-tasks-list {
+            max-height: 300px;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        .completed-task-item {
+            padding: 10px;
+            border-radius: var(--border-radius);
+            margin-bottom: 8px;
+            background: var(--light);
+            border-left: 4px solid var(--success);
+            opacity: 0.9;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .completed-task-item:hover {
+            opacity: 1;
+            transform: translateX(2px);
         }
 
         .active-task h3 {
@@ -870,19 +1038,30 @@
                         <h2 class="card-title">Dashboard</h2>
                     </div>
                     <div class="dashboard-stats">
-                        <div class="stat-card">
-                            <div class="stat-value" id="active-count">0</div>
-                            <div class="stat-label">Active Tasks</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-value" id="completed-count">0</div>
-                            <div class="stat-label">Completed Today</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-value" id="time-tracked">0m</div>
-                            <div class="stat-label">Time Tracked</div>
-                        </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="active-count">0</div>
+                        <div class="stat-label">Active Tasks</div>
                     </div>
+                    <div class="stat-card clickable-stat" id="completed-stat-card">
+                        <div class="stat-value" id="completed-count">0</div>
+                        <div class="stat-label">Completed Today</div>
+                        <i class="fas fa-chevron-down stat-toggle-icon" id="completed-toggle-icon"></i>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="time-tracked">0m</div>
+                        <div class="stat-label">Time Tracked</div>
+                    </div>
+                </div>
+
+                <!-- Add completed tasks section after dashboard stats -->
+                <div class="completed-tasks-section" id="completed-tasks-section" style="display: none;">
+                    <div class="completed-tasks-header">
+                        <h3><i class="fas fa-check-circle"></i> Completed Tasks</h3>
+                    </div>
+                    <div class="completed-tasks-list" id="completed-tasks-list">
+                        <!-- Completed tasks will be rendered here -->
+                    </div>
+                </div>
 
                     <div class="active-task">
                         <h3><i class="fas fa-bolt"></i> Currently Working On</h3>
@@ -915,26 +1094,30 @@
         
         // DOM Elements
         const taskForm = document.getElementById('task-form');
-        const taskList = document.getElementById('task-list');
-        const taskTitle = document.getElementById('task-title');
-        const taskProject = document.getElementById('task-project');
-        const taskDescription = document.getElementById('task-description');
-        const taskPriority = document.getElementById('task-priority');
-        const taskHistoryEl = document.getElementById('task-history');
-        const activeCount = document.getElementById('active-count');
-        const completedCount = document.getElementById('completed-count');
-        const timeTracked = document.getElementById('time-tracked');
-        const currentTaskTitle = document.getElementById('current-task-title');
-        const currentTaskTime = document.getElementById('current-task-time');
-        const currentTaskProject = document.getElementById('current-task-project');
-        const filterBtn = document.getElementById('filter-btn');
-        const filterContent = document.getElementById('filter-content');
-        const applyFiltersBtn = document.getElementById('apply-filters');
-        const clearFiltersBtn = document.getElementById('clear-filters');
-        const projectFilters = document.getElementById('project-filters');
-        const exportBtn = document.getElementById('export-data');
-        const importBtn = document.getElementById('import-data');
-        const importFile = document.getElementById('import-file');
+const taskList = document.getElementById('task-list');
+const taskTitle = document.getElementById('task-title');
+const taskProject = document.getElementById('task-project');
+const taskDescription = document.getElementById('task-description');
+const taskPriority = document.getElementById('task-priority');
+const taskHistoryEl = document.getElementById('task-history');
+const activeCount = document.getElementById('active-count');
+const completedCount = document.getElementById('completed-count');
+const timeTracked = document.getElementById('time-tracked');
+const currentTaskTitle = document.getElementById('current-task-title');
+const currentTaskTime = document.getElementById('current-task-time');
+const currentTaskProject = document.getElementById('current-task-project');
+const filterBtn = document.getElementById('filter-btn');
+const filterContent = document.getElementById('filter-content');
+const applyFiltersBtn = document.getElementById('apply-filters');
+const clearFiltersBtn = document.getElementById('clear-filters');
+const projectFilters = document.getElementById('project-filters');
+const exportBtn = document.getElementById('export-data');
+const importBtn = document.getElementById('import-data');
+const importFile = document.getElementById('import-file');
+const completedStatCard = document.getElementById('completed-stat-card');
+const completedToggleIcon = document.getElementById('completed-toggle-icon');
+const completedTasksSection = document.getElementById('completed-tasks-section');
+const completedTasksList = document.getElementById('completed-tasks-list');
 
         // Filter state
 let activeFilters = {
@@ -945,6 +1128,12 @@ let activeFilters = {
 // Smart sort state
 let smartSortEnabled = false;
 
+// Completed tasks visibility state
+let completedTasksVisible = false;
+
+// Task editing state
+let editingTask = null;
+
         // Initialize the app
         document.addEventListener('DOMContentLoaded', () => {
             loadData();
@@ -953,6 +1142,214 @@ let smartSortEnabled = false;
             updateDashboard();
             setupFilters();
             adjustColumnHeights();
+            
+            // Add completed tasks toggle event listener
+            completedStatCard.addEventListener('click', toggleCompletedTasks);
+            
+            // Toggle completed tasks visibility
+            function toggleCompletedTasks() {
+                completedTasksVisible = !completedTasksVisible;
+                
+                if (completedTasksVisible) {
+                    completedTasksSection.style.display = 'block';
+                    completedToggleIcon.classList.add('rotated');
+                    renderCompletedTasks();
+                } else {
+                    completedTasksSection.style.display = 'none';
+                    completedToggleIcon.classList.remove('rotated');
+                }
+            }
+            
+            // Render completed tasks
+            function renderCompletedTasks() {
+                const completedTasks = tasks.filter(task => task.status === 'completed');
+                completedTasksList.innerHTML = '';
+                
+                if (completedTasks.length === 0) {
+                    completedTasksList.innerHTML = `
+                        <div class="empty-state">
+                            <p>No completed tasks today</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                completedTasks.forEach(task => {
+                    const taskElement = document.createElement('div');
+                    taskElement.className = 'completed-task-item';
+                    taskElement.dataset.id = task.id;
+                    
+                    const projectTag = task.project ? `<span class="project-tag">${task.project}</span>` : '';
+                    
+                    taskElement.innerHTML = `
+                        <div class="task-header">
+                            <div class="task-title">${task.title} ${projectTag}</div>
+                            <div class="time-tracker">
+                                <i class="fas fa-clock"></i>
+                                <span class="timer">${formatTime(task.timeSpent)}</span>
+                            </div>
+                        </div>
+                        <div class="task-description">${task.description}</div>
+                        <div class="task-actions">
+                            ${getActionButtons(task)}
+                        </div>
+                    `;
+                    
+                    completedTasksList.appendChild(taskElement);
+                });
+                
+                // Add event listeners for action buttons
+                completedTasksList.querySelectorAll('.task-actions .btn').forEach(button => {
+                    button.addEventListener('click', handleTaskAction);
+                });
+                
+                // Add event listeners for task editing
+                completedTasksList.querySelectorAll('.completed-task-item').forEach(item => {
+                    item.addEventListener('click', (e) => {
+                        if (!e.target.closest('.task-actions')) {
+                            const taskId = parseInt(item.dataset.id);
+                            openTaskEditModal(taskId);
+                        }
+                    });
+                });
+            }
+            
+            // Add task editing event listeners 
+            document.addEventListener('click', handleTaskEdit);
+            
+            // Handle task editing
+            function handleTaskEdit(e) {
+                const taskItem = e.target.closest('.task-item');
+                if (taskItem && !e.target.closest('.task-actions')) {
+                    const taskId = parseInt(taskItem.dataset.id);
+                    openTaskEditModal(taskId);
+                }
+            }
+            
+            // Open task edit modal
+            function openTaskEditModal(taskId) {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+    
+    editingTask = task;
+    
+    const modal = document.createElement('div');
+    modal.className = 'task-edit-modal';
+    modal.innerHTML = `
+        <div class="task-edit-content">
+            <div class="task-edit-header">
+                <h3>Edit Task</h3>
+                <button class="task-edit-close" type="button">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="task-edit-form">
+                <div class="form-group">
+                    <label for="edit-task-title">Task Title</label>
+                    <input type="text" id="edit-task-title" value="${task.title}" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-task-project">Project</label>
+                    <input type="text" id="edit-task-project" value="${task.project || ''}" placeholder="Project name (optional)">
+                </div>
+                <div class="form-group">
+                    <label for="edit-task-description">Description</label>
+                    <textarea id="edit-task-description" rows="3">${task.description}</textarea>
+                </div>
+                <div class="form-group">
+                    <label for="edit-task-priority">Priority</label>
+                    <select id="edit-task-priority">
+                        <option value="low" ${task.priority === 'low' ? 'selected' : ''}>Low</option>
+                        <option value="medium" ${task.priority === 'medium' ? 'selected' : ''}>Medium</option>
+                        <option value="high" ${task.priority === 'high' ? 'selected' : ''}>High</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="edit-task-status">Status</label>
+                    <select id="edit-task-status">
+                        <option value="not-started" ${task.status === 'not-started' ? 'selected' : ''}>Not Started</option>
+                        <option value="in-progress" ${task.status === 'in-progress' ? 'selected' : ''}>In Progress</option>
+                        <option value="paused" ${task.status === 'paused' ? 'selected' : ''}>Paused</option>
+                        <option value="completed" ${task.status === 'completed' ? 'selected' : ''}>Completed</option>
+                    </select>
+                </div>
+                <div class="form-group form-buttons">
+                    <button type="submit" class="btn"><i class="fas fa-save"></i> Save Changes</button>
+                    <button type="button" class="btn btn-secondary cancel-btn">Cancel</button>
+                </div>
+            </form>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Add event listeners for close buttons
+    const closeBtn = modal.querySelector('.task-edit-close');
+    const cancelBtn = modal.querySelector('.cancel-btn');
+    
+    closeBtn.addEventListener('click', closeTaskEditModal);
+    cancelBtn.addEventListener('click', closeTaskEditModal);
+    
+    // Add form submit event listener
+    document.getElementById('task-edit-form').addEventListener('submit', saveTaskEdit);
+    
+    // Close modal when clicking outside
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            closeTaskEditModal();
+        }
+    });
+            }
+            
+            // Close task edit modal
+            function closeTaskEditModal() {
+                const modal = document.querySelector('.task-edit-modal');
+                if (modal) {
+                    modal.remove();
+                }
+                editingTask = null;
+            }
+            
+            // Save task edit
+            function saveTaskEdit(e) {
+                e.preventDefault();
+                
+                if (!editingTask) return;
+                
+                const title = document.getElementById('edit-task-title').value.trim();
+                const project = document.getElementById('edit-task-project').value.trim();
+                const description = document.getElementById('edit-task-description').value.trim();
+                const priority = document.getElementById('edit-task-priority').value;
+                const status = document.getElementById('edit-task-status').value;
+                
+                if (!title) {
+                    alert('Task title is required!');
+                    return;
+                }
+                
+                // Update task
+                editingTask.title = title;
+                editingTask.project = project;
+                editingTask.description = description;
+                editingTask.priority = priority;
+                editingTask.status = status;
+                editingTask.lastUpdated = new Date();
+                
+                // Add to history
+                addToHistory(editingTask, 'updated');
+                
+                // Re-render everything
+                renderTaskList();
+                updateDashboard();
+                setupFilters();
+                
+                if (completedTasksVisible) {
+                    renderCompletedTasks();
+                }
+                
+                saveData();
+                closeTaskEditModal();
+            }
             
             // Add reset button event listener
             document.getElementById('reset-daily-time').addEventListener('click', () => {
@@ -1211,6 +1608,7 @@ function renderTaskList() {
         const taskElement = document.createElement('li');
         taskElement.className = `task-item ${task.status} priority-${task.priority}`;
         taskElement.dataset.id = task.id;
+        taskElement.title = 'Click to edit task';
         
         const projectTag = task.project ? `<span class="project-tag">${task.project}</span>` : '';
         
@@ -1225,7 +1623,7 @@ function renderTaskList() {
             <div class="task-details">
                 <div class="time-tracker">
                     <i class="fas fa-clock"></i>
-                    <span class="timer">${formatTime(task.timeSpent)}</span>
+                    <span class="timer">${formatTime(task.dailyTimeSpent)}</span>
                 </div>
                 <div class="task-actions">
                     ${getActionButtons(task)}
