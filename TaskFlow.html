@@ -856,6 +856,7 @@
                             <div class="data-management">
                                 <button class="btn btn-sm" id="export-data"><i class="fas fa-download"></i> Export</button>
                                 <button class="btn btn-sm btn-warning" id="import-data"><i class="fas fa-upload"></i> Import</button>
+                                <button class="btn btn-sm btn-danger" id="reset-daily-time"><i class="fas fa-clock"></i> Reset Daily Time</button>
                                 <input type="file" id="import-file" accept=".json" style="display: none;">
                             </div>
                         </div>
@@ -952,6 +953,16 @@ let smartSortEnabled = false;
             updateDashboard();
             setupFilters();
             adjustColumnHeights();
+            
+            // Add reset button event listener
+            document.getElementById('reset-daily-time').addEventListener('click', () => {
+                if (confirm('Reset daily time for all tasks? This will save current progress to history.')) {
+                    resetDailyTime();
+                }
+            });
+            
+            // Check for daily reset on app load
+            checkDailyReset();
             
             // Set current active task
             const activeTask = tasks.find(task => task.status === 'in-progress');
@@ -1258,11 +1269,11 @@ function renderTaskList() {
         function updateDashboard() {
             const activeTasks = tasks.filter(task => task.status === 'in-progress' || task.status === 'paused').length;
             const completedTasks = tasks.filter(task => task.status === 'completed').length;
-            const totalTime = tasks.reduce((total, task) => total + task.timeSpent, 0);
+            const dailyTime = tasks.reduce((total, task) => total + (task.dailyTimeSpent || task.timeSpent || 0), 0);
             
             activeCount.textContent = activeTasks;
             completedCount.textContent = completedTasks;
-            timeTracked.textContent = formatTime(totalTime);
+            timeTracked.textContent = formatTime(dailyTime);
         }
 
         // Get status text for display
@@ -1404,8 +1415,12 @@ function renderTaskList() {
                 description,
                 status: 'not-started',
                 priority,
-                timeSpent: 0,
-                lastUpdated: new Date()
+                timeSpent: 0, // Legacy field for backward compatibility
+                dailyTimeSpent: 0, // Time spent today
+                totalTimeSpent: 0, // All-time total
+                timeHistory: [], // Array of {date, timeSpent} objects
+                lastUpdated: new Date(),
+                lastResetDate: new Date().toDateString() // Track when daily time was last reset
             };
             
             tasks.unshift(newTask);
@@ -1417,12 +1432,95 @@ function renderTaskList() {
             taskForm.reset();
         }
 
+        // Check and handle daily reset
+        function checkDailyReset() {
+            const today = new Date().toDateString();
+            
+            tasks.forEach(task => {
+                // Migrate legacy tasks
+                if (!task.hasOwnProperty('dailyTimeSpent')) {
+                    task.dailyTimeSpent = task.timeSpent || 0;
+                    task.totalTimeSpent = task.timeSpent || 0;
+                    task.timeHistory = [];
+                    task.lastResetDate = today;
+                }
+                
+                // Check if we need to reset daily time
+                if (task.lastResetDate !== today) {
+                    // Save yesterday's time to history if there was any
+                    if (task.dailyTimeSpent > 0) {
+                        task.timeHistory.push({
+                            date: task.lastResetDate,
+                            timeSpent: task.dailyTimeSpent
+                        });
+                        
+                        // Keep only last 30 days of history
+                        if (task.timeHistory.length > 30) {
+                            task.timeHistory = task.timeHistory.slice(-30);
+                        }
+                    }
+                    
+                    // Reset daily time
+                    task.dailyTimeSpent = 0;
+                    task.lastResetDate = today;
+                    
+                    // Update legacy timeSpent field for backward compatibility
+                    task.timeSpent = task.dailyTimeSpent;
+                }
+            });
+        }
+
+        // Manual daily reset function
+        function resetDailyTime(taskId = null) {
+            const today = new Date().toDateString();
+            const tasksToReset = taskId ? [tasks.find(t => t.id === taskId)] : tasks;
+            
+            tasksToReset.forEach(task => {
+                if (!task) return;
+                
+                // Save current daily time to history if there's any
+                if (task.dailyTimeSpent > 0) {
+                    task.timeHistory.push({
+                        date: today,
+                        timeSpent: task.dailyTimeSpent
+                    });
+                    
+                    // Keep only last 30 days
+                    if (task.timeHistory.length > 30) {
+                        task.timeHistory = task.timeHistory.slice(-30);
+                    }
+                }
+                
+                // Reset daily time
+                task.dailyTimeSpent = 0;
+                task.lastResetDate = today;
+                
+                // Update legacy field
+                task.timeSpent = task.dailyTimeSpent;
+            });
+            
+            renderTaskList();
+            updateDashboard();
+            saveData();
+            
+            const message = taskId ? 'Task daily time reset successfully!' : 'All daily times reset successfully!';
+            alert(message);
+        }
+
         // Simulate time tracking
         setInterval(() => {
+            // Check for daily reset first
+            checkDailyReset();
+            
             let updated = false;
             tasks.forEach(task => {
                 if (task.status === 'in-progress') {
-                    task.timeSpent += 1;
+                    task.dailyTimeSpent += 1;
+                    task.totalTimeSpent += 1;
+                    
+                    // Update legacy field for backward compatibility
+                    task.timeSpent = task.dailyTimeSpent;
+                    
                     updated = true;
                 }
             });
@@ -1433,7 +1531,7 @@ function renderTaskList() {
                 
                 const activeTask = tasks.find(task => task.status === 'in-progress');
                 if (activeTask) {
-                    currentTaskTime.textContent = formatTime(activeTask.timeSpent);
+                    currentTaskTime.textContent = formatTime(activeTask.dailyTimeSpent);
                 }
                 
                 saveData();
