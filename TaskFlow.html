@@ -156,8 +156,9 @@
 
         .btn-danger {
             background: var(--danger);
-            padding: 8px 12px; /* Ensure enough space for icon */
-            min-width: 40px; /* Minimum width to show icon */
+            padding: 8px 12px;
+            min-width: 40px;
+            justify-content: center; /* Add this to center content */
         }
 
         .form-group {
@@ -442,6 +443,19 @@
             display: inline-block;
         }
 
+        .recent-badge {
+            color: var(--primary);
+            font-size: 1.2rem;
+            margin-left: 8px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
         ::-webkit-scrollbar {
             width: 8px;
         }
@@ -711,6 +725,7 @@
                 padding: 10px 12px;
                 min-width: 44px;
                 justify-content: center;
+                gap: 0; /* Remove gap for icon-only buttons */
             }
             
             /* Ensure all action buttons have proper spacing on mobile */
@@ -718,6 +733,7 @@
                 min-width: 44px;
                 justify-content: center;
                 padding: 10px 12px;
+                gap: 0; /* Remove gap for icon-only buttons on mobile */
             }
             
             /* Show icons only on mobile for action buttons */
@@ -747,6 +763,12 @@
         .btn-danger i {
             margin-right: 0;
         }
+        
+        /* Add this new rule to properly center icon-only buttons */
+        .btn-danger:not(:has(span)) {
+            justify-content: center;
+            gap: 0;
+        }
     </style>
 </head>
 <body>
@@ -758,6 +780,9 @@
                         <h2 class="card-title">Your Tasks</h2>
                         <div class="filter-dropdown">
                             <button class="btn btn-sm" id="filter-btn"><i class="fas fa-filter"></i> Filter</button>
+                            <button class="btn btn-sm" id="sort-toggle" title="Toggle Smart Sort">
+                                <i class="fas fa-sort-amount-down"></i>
+                            </button>
                             <div class="filter-content" id="filter-content">
                                 <div class="filter-group">
                                     <h4>Status</h4>
@@ -911,10 +936,13 @@
         const importFile = document.getElementById('import-file');
 
         // Filter state
-        let activeFilters = {
-            status: ['not-started', 'in-progress', 'paused', 'completed'],
-            projects: []
-        };
+let activeFilters = {
+    status: ['not-started', 'in-progress', 'paused', 'completed'],
+    projects: []
+};
+
+// Smart sort state
+let smartSortEnabled = false;
 
         // Initialize the app
         document.addEventListener('DOMContentLoaded', () => {
@@ -941,6 +969,23 @@
             taskForm.addEventListener('submit', (e) => {
                 e.preventDefault();
                 addNewTask();
+            });
+
+            // Add sort toggle event listener
+            document.getElementById('sort-toggle').addEventListener('click', () => {
+                smartSortEnabled = !smartSortEnabled;
+                const sortBtn = document.getElementById('sort-toggle');
+                const icon = sortBtn.querySelector('i');
+                
+                if (smartSortEnabled) {
+                    icon.className = 'fas fa-sort-amount-up';
+                    sortBtn.title = 'Smart Sort: ON';
+                } else {
+                    icon.className = 'fas fa-sort-amount-down';
+                    sortBtn.title = 'Smart Sort: OFF';
+                }
+                
+                renderTaskList();
             });
             
             filterBtn.addEventListener('click', (e) => {
@@ -1103,66 +1148,88 @@
         }
 
         // Render task list
-        function renderTaskList() {
-            taskList.innerHTML = '';
-            
-            let filteredTasks = tasks.filter(task => {
-                if (!activeFilters.status.includes(task.status)) return false;
-                
-                if (activeFilters.projects.length > 0 && 
-                    task.project && 
-                    !activeFilters.projects.includes(task.project)) {
-                    return false;
-                }
-                
-                return true;
-            });
-            
-            if (filteredTasks.length === 0) {
-                taskList.innerHTML = `
-                    <div class="empty-state">
-                        <i class="fas fa-clipboard-list"></i>
-                        <h3>No tasks match your filters</h3>
-                        <p>Try adjusting your filter settings</p>
-                    </div>
-                `;
-                return;
+function renderTaskList() {
+    taskList.innerHTML = '';
+    
+    let filteredTasks = tasks.filter(task => {
+        if (!activeFilters.status.includes(task.status)) return false;
+        
+        if (activeFilters.projects.length > 0 && 
+            task.project && 
+            !activeFilters.projects.includes(task.project)) {
+            return false;
+        }
+        
+        return true;
+    });
+    
+    // Apply smart sorting if enabled
+    if (smartSortEnabled) {
+        filteredTasks.sort((a, b) => {
+            // Priority 1: Status (in-progress > paused > not-started > completed)
+            const statusOrder = { 'in-progress': 0, 'paused': 1, 'not-started': 2, 'completed': 3 };
+            if (statusOrder[a.status] !== statusOrder[b.status]) {
+                return statusOrder[a.status] - statusOrder[b.status];
             }
             
-            filteredTasks.forEach(task => {
-                const taskElement = document.createElement('li');
-                taskElement.className = `task-item ${task.status} priority-${task.priority}`;
-                taskElement.dataset.id = task.id;
-                
-                const projectTag = task.project ? `<span class="project-tag">${task.project}</span>` : '';
-                
-                taskElement.innerHTML = `
-                    <div class="task-header">
-                        <div class="task-title">${task.title} ${projectTag}</div>
-                        <span class="task-status status-${task.status.replace(' ', '-')}">
-                            ${getStatusText(task.status)}
-                        </span>
-                    </div>
-                    <div class="task-description">${task.description}</div>
-                    <div class="task-details">
-                        <div class="time-tracker">
-                            <i class="fas fa-clock"></i>
-                            <span class="timer">${formatTime(task.timeSpent)}</span>
-                        </div>
-                        <div class="task-actions">
-                            ${getActionButtons(task)}
-                        </div>
-                    </div>
-                `;
-                taskList.appendChild(taskElement);
-            });
+            // Priority 2: Task priority (high > medium > low)
+            const priorityOrder = { 'high': 0, 'medium': 1, 'low': 2 };
+            if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {
+                return priorityOrder[a.priority] - priorityOrder[b.priority];
+            }
             
-            document.querySelectorAll('.task-actions .btn').forEach(button => {
-                button.addEventListener('click', handleTaskAction);
-            });
-            
-            setTimeout(adjustColumnHeights, 100);
-        }
+            // Priority 3: Most recently updated
+            const aTime = new Date(a.lastUpdated || 0).getTime();
+            const bTime = new Date(b.lastUpdated || 0).getTime();
+            return bTime - aTime;
+        });
+    }
+    
+    if (filteredTasks.length === 0) {
+        taskList.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-clipboard-list"></i>
+                <h3>No tasks match your filters</h3>
+                <p>Try adjusting your filter settings</p>
+            </div>
+        `;
+        return;
+    }
+    
+    filteredTasks.forEach(task => {
+        const taskElement = document.createElement('li');
+        taskElement.className = `task-item ${task.status} priority-${task.priority}`;
+        taskElement.dataset.id = task.id;
+        
+        const projectTag = task.project ? `<span class="project-tag">${task.project}</span>` : '';
+        
+        taskElement.innerHTML = `
+            <div class="task-header">
+                <div class="task-title">${task.title} ${projectTag}</div>
+                <span class="task-status status-${task.status.replace(' ', '-')}">
+                    ${getStatusText(task.status)}
+                </span>
+            </div>
+            <div class="task-description">${task.description}</div>
+            <div class="task-details">
+                <div class="time-tracker">
+                    <i class="fas fa-clock"></i>
+                    <span class="timer">${formatTime(task.timeSpent)}</span>
+                </div>
+                <div class="task-actions">
+                    ${getActionButtons(task)}
+                </div>
+            </div>
+        `;
+        taskList.appendChild(taskElement);
+    });
+    
+    document.querySelectorAll('.task-actions .btn').forEach(button => {
+        button.addEventListener('click', handleTaskAction);
+    });
+    
+    setTimeout(adjustColumnHeights, 100);
+}
 
         // Render task history
         function renderTaskHistory() {
@@ -1257,22 +1324,28 @@
             
             if (button.classList.contains('start-btn')) {
                 task.status = 'in-progress';
+                task.lastUpdated = new Date();
                 addToHistory(task, 'started');
             } else if (button.classList.contains('pause-btn')) {
                 task.status = 'paused';
+                task.lastUpdated = new Date();
                 addToHistory(task, 'paused');
             } else if (button.classList.contains('resume-btn')) {
                 task.status = 'in-progress';
+                task.lastUpdated = new Date();
                 addToHistory(task, 'resumed');
             } else if (button.classList.contains('complete-btn')) {
                 task.status = 'completed';
+                task.lastUpdated = new Date();
                 addToHistory(task, 'completed');
             } else if (button.classList.contains('restart-btn')) {
                 task.status = 'in-progress';
                 task.timeSpent = 0;
+                task.lastUpdated = new Date();
                 addToHistory(task, 'restarted');
             } else if (button.classList.contains('cancel-btn')) {
                 task.status = 'not-started';
+                task.lastUpdated = new Date();
                 addToHistory(task, 'cancelled');
             } else if (button.classList.contains('delete-btn')) {
                 tasks = tasks.filter(t => t.id !== taskId);
