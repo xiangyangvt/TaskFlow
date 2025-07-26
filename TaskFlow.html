@@ -2126,6 +2126,210 @@ function renderTaskList() {
             saveData();
         }
 
+        // Project autocomplete functionality
+        let currentSuggestionIndex = -1;
+        let filteredSuggestions = [];
+        let autocompleteContainer = null;
+
+        // Get unique project names from existing tasks
+        function getProjectSuggestions(input) {
+            const uniqueProjects = [...new Set(tasks
+                .map(task => task.project)
+                .filter(project => project && project.trim() !== '')
+            )];
+            
+            if (!input) return uniqueProjects;
+            
+            return uniqueProjects.filter(project => 
+                project.toLowerCase().includes(input.toLowerCase())
+            );
+        }
+
+        // Create autocomplete dropdown
+        function createAutocompleteDropdown() {
+            if (autocompleteContainer) {
+                autocompleteContainer.remove();
+            }
+            
+            autocompleteContainer = document.createElement('div');
+            autocompleteContainer.className = 'autocomplete-dropdown';
+            autocompleteContainer.style.cssText = `
+                position: absolute;
+                top: 100%;
+                left: 0;
+                right: 0;
+                background: white;
+                border: 1px solid #ddd;
+                border-top: none;
+                border-radius: 0 0 4px 4px;
+                max-height: 150px;
+                overflow-y: auto;
+                z-index: 1000;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                display: none;
+            `;
+            
+            taskProject.parentNode.style.position = 'relative';
+            taskProject.parentNode.appendChild(autocompleteContainer);
+        }
+
+        // Show autocomplete suggestions
+        function showAutocompleteSuggestions(suggestions) {
+            if (!autocompleteContainer) {
+                createAutocompleteDropdown();
+            }
+            
+            autocompleteContainer.innerHTML = '';
+            filteredSuggestions = suggestions;
+            currentSuggestionIndex = -1;
+            
+            if (suggestions.length === 0) {
+                autocompleteContainer.style.display = 'none';
+                return;
+            }
+            
+            suggestions.forEach((suggestion, index) => {
+                const suggestionElement = document.createElement('div');
+                suggestionElement.className = 'autocomplete-suggestion';
+                suggestionElement.textContent = suggestion;
+                suggestionElement.style.cssText = `
+                    padding: 8px 12px;
+                    cursor: pointer;
+                    border-bottom: 1px solid #f0f0f0;
+                    transition: background-color 0.2s;
+                `;
+                
+                suggestionElement.addEventListener('mouseenter', () => {
+                    clearSuggestionHighlight();
+                    suggestionElement.style.backgroundColor = '#f5f5f5';
+                    currentSuggestionIndex = index;
+                });
+                
+                suggestionElement.addEventListener('mouseleave', () => {
+                    suggestionElement.style.backgroundColor = 'white';
+                });
+                
+                suggestionElement.addEventListener('click', () => {
+                    acceptSuggestion(suggestion);
+                });
+                
+                autocompleteContainer.appendChild(suggestionElement);
+            });
+            
+            autocompleteContainer.style.display = 'block';
+        }
+
+        // Hide autocomplete dropdown
+        function hideAutocomplete() {
+            if (autocompleteContainer) {
+                autocompleteContainer.style.display = 'none';
+            }
+            currentSuggestionIndex = -1;
+            filteredSuggestions = [];
+        }
+
+        // Clear suggestion highlight
+        function clearSuggestionHighlight() {
+            if (autocompleteContainer) {
+                const suggestions = autocompleteContainer.querySelectorAll('.autocomplete-suggestion');
+                suggestions.forEach(suggestion => {
+                    suggestion.style.backgroundColor = 'white';
+                });
+            }
+        }
+
+        // Highlight suggestion by index
+        function highlightSuggestion(index) {
+            clearSuggestionHighlight();
+            if (autocompleteContainer && index >= 0 && index < filteredSuggestions.length) {
+                const suggestions = autocompleteContainer.querySelectorAll('.autocomplete-suggestion');
+                if (suggestions[index]) {
+                    suggestions[index].style.backgroundColor = '#f5f5f5';
+                }
+            }
+        }
+
+        // Accept suggestion
+        function acceptSuggestion(suggestion) {
+            taskProject.value = suggestion;
+            hideAutocomplete();
+            taskProject.focus();
+        }
+
+        // Handle project input events
+        taskProject.addEventListener('input', (e) => {
+            const input = e.target.value.trim();
+            const suggestions = getProjectSuggestions(input);
+            
+            if (input.length > 0 && suggestions.length > 0) {
+                showAutocompleteSuggestions(suggestions);
+            } else {
+                hideAutocomplete();
+            }
+        });
+
+        // Handle project input keydown events
+        taskProject.addEventListener('keydown', (e) => {
+            if (!autocompleteContainer || autocompleteContainer.style.display === 'none') {
+                return;
+            }
+            
+            switch (e.key) {
+                case 'Tab':
+                    e.preventDefault();
+                    if (currentSuggestionIndex >= 0 && currentSuggestionIndex < filteredSuggestions.length) {
+                        acceptSuggestion(filteredSuggestions[currentSuggestionIndex]);
+                    } else if (filteredSuggestions.length > 0) {
+                        acceptSuggestion(filteredSuggestions[0]);
+                    }
+                    break;
+                    
+                case 'ArrowDown':
+                    e.preventDefault();
+                    currentSuggestionIndex = Math.min(currentSuggestionIndex + 1, filteredSuggestions.length - 1);
+                    highlightSuggestion(currentSuggestionIndex);
+                    break;
+                    
+                case 'ArrowUp':
+                    e.preventDefault();
+                    currentSuggestionIndex = Math.max(currentSuggestionIndex - 1, -1);
+                    if (currentSuggestionIndex >= 0) {
+                        highlightSuggestion(currentSuggestionIndex);
+                    } else {
+                        clearSuggestionHighlight();
+                    }
+                    break;
+                    
+                case 'Enter':
+                    if (currentSuggestionIndex >= 0 && currentSuggestionIndex < filteredSuggestions.length) {
+                        e.preventDefault();
+                        acceptSuggestion(filteredSuggestions[currentSuggestionIndex]);
+                    }
+                    break;
+                    
+                case 'Escape':
+                    hideAutocomplete();
+                    break;
+            }
+        });
+
+        // Handle focus events
+        taskProject.addEventListener('focus', (e) => {
+            const input = e.target.value.trim();
+            const suggestions = getProjectSuggestions(input);
+            
+            if (suggestions.length > 0) {
+                showAutocompleteSuggestions(suggestions);
+            }
+        });
+
+        // Hide autocomplete when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!taskProject.contains(e.target) && (!autocompleteContainer || !autocompleteContainer.contains(e.target))) {
+                hideAutocomplete();
+            }
+        });
+
         // Add new task
         function addNewTask() {
             const title = taskTitle.value.trim();
