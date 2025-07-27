@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TaskFlow</title>
+    <link rel="icon" href="image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📋</text></svg>">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="app-container">
+            <div class="left-column">
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">Your Tasks</h2>
+                        <div class="filter-dropdown">
+                            <button class="btn btn-sm" id="filter-btn"><i class="fas fa-filter"></i> Filter</button>
+                            <button class="btn btn-sm" id="sort-toggle" title="Toggle Smart Sort">
+                                <i class="fas fa-sort-amount-down"></i>
+                            </button>
+                            <button class="btn btn-sm" id="export-data"><i class="fas fa-download"></i></button>
+                            <button class="btn btn-sm" id="import-data"><i class="fas fa-upload"></i></button>
+                            <div class="filter-content" id="filter-content">
+                                <div class="filter-group">
+                                    <h4>Status</h4>
+                                    <div class="filter-options">
+                                        <div class="filter-option">
+                                            <input type="checkbox" id="filter-not-started" value="not-started" checked>
+                                            <label for="filter-not-started">Not Started</label>
+                                        </div>
+                                        <div class="filter-option">
+                                            <input type="checkbox" id="filter-in-progress" value="in-progress" checked>
+                                            <label for="filter-in-progress">In Progress</label>
+                                        </div>
+                                        <div class="filter-option">
+                                            <input type="checkbox" id="filter-paused" value="paused" checked>
+                                            <label for="filter-paused">Paused</label>
+                                        </div>
+                                        <div class="filter-option">
+                                            <input type="checkbox" id="filter-completed" value="completed" checked>
+                                            <label for="filter-completed">Completed</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="filter-group">
+                                    <h4>Projects</h4>
+                                    <div class="filter-options" id="project-filters">
+                                    </div>
+                                </div>
+                                <div class="filter-actions">
+                                    <button class="btn btn-sm" id="apply-filters">Apply</button>
+                                    <button class="btn btn-sm btn-danger" id="clear-filters">Clear</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="task-list-container">
+                        <ul class="task-list" id="task-list">
+                        </ul>
+                        
+                        <div class="add-task-form">
+                            <div class="add-task-form-header">
+                                <h3>Add New Task</h3>
+                            </div>
+                            <form id="task-form">
+                                <div class="add-task-form-content">
+                                    <div class="form-group">
+                                        <label for="task-title">Task Title</label>
+                                        <input type="text" id="task-title" placeholder="What needs to be done?" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="task-project">Project</label>
+                                        <input type="text" id="task-project" placeholder="Project name (optional)">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="task-description">Description</label>
+                                        <textarea id="task-description" placeholder="Add details..." rows="2"></textarea>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="task-priority">Priority</label>
+                                        <select id="task-priority">
+                                            <option value="low">Low</option>
+                                            <option value="medium" selected>Medium</option>
+                                            <option value="high">High</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <button type="submit" class="btn"><i class="fas fa-plus"></i> Add Task</button>
+                                    </div>
+                                </div>
+                            </form>
+                            
+                            <div class="data-management">
+                                <button class="btn btn-sm" id="export-data-alt"><i class="fas fa-download"></i> Export</button>
+                                <button class="btn btn-sm btn-warning" id="import-data-alt"><i class="fas fa-upload"></i> Import</button>
+                                <button class="btn btn-sm btn-danger" id="reset-daily-time"><i class="fas fa-clock"></i> Reset Daily Time</button>
+                                <input type="file" id="import-file" accept=".json" style="display: none;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="right-column">
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">Dashboard</h2>
+                    </div>
+                    <div class="dashboard-stats">
+                        <div class="stat-card">
+                            <div class="stat-value" id="active-count">0</div>
+                            <div class="stat-label">Active Tasks</div>
+                        </div>
+                        <div class="stat-card clickable-stat" id="completed-stat-card">
+                            <div class="stat-value" id="completed-count">0</div>
+                            <div class="stat-label">Completed Today</div>
+                            <i class="fas fa-chevron-down stat-toggle-icon" id="completed-toggle-icon"></i>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="time-tracked">0m</div>
+                            <div class="stat-label">Time Tracked Today</div>
+                        </div>
+                        
+                        <div class="reset-section">
+                            <button class="btn btn-sm btn-warning" id="reset-daily-time-alt">
+                                <i class="fas fa-refresh"></i> Reset Today's Time
+                            </button>
+                            <small class="reset-help">Saves progress to history before resetting</small>
+                        </div>
+                    </div>
+
+                    <div class="completed-tasks-section" id="completed-tasks-section" style="display: none;">
+                        <div class="completed-tasks-header">
+                            <h3><i class="fas fa-check-circle"></i> Completed Tasks</h3>
+                        </div>
+                        <div class="completed-tasks-list" id="completed-tasks-list">
+                        </div>
+                    </div>
+
+                    <div class="active-task">
+                        <h3><i class="fas fa-bolt"></i> Currently Working On</h3>
+                        <div class="active-task-title" id="current-task-title">No active task</div>
+                        <div class="progress-bar">
+                            <div class="progress"></div>
+                        </div>
+                        <div class="active-task-details">
+                            <div><i class="fas fa-clock"></i> Time: <span id="current-task-time">0m</span></div>
+                            <div><i class="fas fa-project-diagram"></i> Project: <span id="current-task-project">None</span></div>
+                        </div>
+                    </div>
+
+                    <div class="card-header">
+                        <h2 class="card-title">Recent Activity</h2>
+                    </div>
+                    <div id="task-history-container">
+                        <div class="task-history" id="task-history">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/storage.js"></script>
+    <script src="js/tasks.js"></script>
+    <script src="js/filters.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
